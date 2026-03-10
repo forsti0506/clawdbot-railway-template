@@ -32,7 +32,7 @@ ENV PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${PATH}"
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
     brew --version
 
-# Optional: install skill deps here (still as linuxbrew)
+# Optional: install common skill deps via brew here
 # RUN brew install ffmpeg
 
 # Switch to root AFTER Homebrew install is done
@@ -79,11 +79,24 @@ RUN apt-get update \
     build-essential \
     file \
     procps \
+    sudo \
   && rm -rf /var/lib/apt/lists/*
 
-# Copy Homebrew from the build stage and expose on PATH
+# Copy Homebrew tree from build stage
 COPY --from=openclaw-build /home/linuxbrew /home/linuxbrew
-ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
+
+# Pre-create linuxbrew user in runtime image
+RUN useradd -m -s /bin/bash linuxbrew || true \
+  && echo 'linuxbrew ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Brew wrapper: intercepts ALL brew calls and runs as linuxbrew user (fixes Skills UI root error)
+RUN cat > /usr/local/bin/brew << 'EOF' \
+  && chmod +x /usr/local/bin/brew
+#!/bin/bash
+exec su - linuxbrew -c "/home/linuxbrew/.linuxbrew/bin/brew $*"
+EOF
+
+ENV PATH="/usr/local/bin:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
 
 # `openclaw update` expects pnpm. Provide it in the runtime image.
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
@@ -110,6 +123,7 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 
 COPY src ./src
 
+# The wrapper listens on $PORT.
 EXPOSE 8080
 
 ENTRYPOINT ["tini", "--"]
