@@ -21,25 +21,25 @@ RUN apt-get update \
 RUN useradd -m -s /bin/bash linuxbrew && \
     echo 'linuxbrew ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     mkdir -p /home/linuxbrew/.linuxbrew && \
-    chown -R linuxbrew:linuxbrew /home/linuxbrew
+    chown -R linuxbrew:linuxbrew /home/linuxbrew && \
+    touch /.dockerenv
 
 USER linuxbrew
 ENV HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
 ENV PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${PATH}"
 
-# Install Homebrew COMPLETELY as linuxbrew user (no root switch during install)
+# Install Homebrew COMPLETELY as linuxbrew user
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
     brew --version
 
 # Optional: install skill deps here (still as linuxbrew)
 # RUN brew install ffmpeg
 
-# ----- end Homebrew install -----
-
 # Switch to root AFTER Homebrew install is done
 USER root
 # Root just needs brew on PATH; DO NOT run brew as root
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
+# ----- end Homebrew install -----
 
 # Install Bun (openclaw build uses it)
 RUN curl -fsSL https://bun.sh/install | bash
