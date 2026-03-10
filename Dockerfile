@@ -17,7 +17,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # ----- Homebrew (Linuxbrew) install -----
-# Install Homebrew as non-root user
+# Create linuxbrew user and pre-create prefix
 RUN useradd -m -s /bin/bash linuxbrew && \
     echo 'linuxbrew ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     mkdir -p /home/linuxbrew/.linuxbrew && \
@@ -27,7 +27,7 @@ USER linuxbrew
 ENV HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
 ENV PATH="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${PATH}"
 
-# Install Homebrew and verify (ALL as linuxbrew, not root)
+# Install Homebrew COMPLETELY as linuxbrew user (no root switch during install)
 RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
     brew --version
 
@@ -35,6 +35,8 @@ RUN NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.co
 # RUN brew install ffmpeg
 
 # ----- end Homebrew install -----
+
+# Switch to root AFTER Homebrew install is done
 USER root
 # Root just needs brew on PATH; DO NOT run brew as root
 ENV PATH="/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:${PATH}"
